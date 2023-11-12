@@ -1,6 +1,4 @@
-from openTSNE.tsne import TSNE, TSNEEmbedding
-from openTSNE import affinity
-from openTSNE import initialization
+from openTSNE import TSNE
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -9,7 +7,6 @@ from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 import matplotlib.font_manager as fm
 
 class Slider():
-    #reST docstring
     """
     Slider class for openTSNE
     """
