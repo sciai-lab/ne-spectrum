@@ -193,7 +193,7 @@ class Slider():
             plt.savefig(save_path + prefix + str(i) + suffix, bbox_inches='tight', pad_inches=0.5)
             plt.close(fig)
 
-    def save_video(self, file_name = 'video.mp4', size = 0.3, color = None, cmap = 'viridis', bound_type = 'max'):
+    def save_video(self, file_name = 'video.mp4', size = 0.3, color = None, cmap = 'viridis', bound_type = 'trimmed_cov'):
         """
         Save the slides as a video
 
