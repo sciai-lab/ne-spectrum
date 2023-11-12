@@ -120,7 +120,7 @@ class Slider():
         """
         plt.scatter(*embedding.T, s=size, c=color, cmap=cmap)
         plt.axis('off')
-        plt.title(title, fontsize=25)
+        plt.title(title, fontsize=20)
 
         if bound_type == 'max':
             bounds = [[embedding[:, 0].min(), embedding[:, 0].max()], [embedding[:, 1].min(), embedding[:, 1].max()]]
