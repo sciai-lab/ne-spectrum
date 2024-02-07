@@ -122,6 +122,9 @@ class Slider():
         if ax is None:
             fig, ax = plt.subplots(figsize=(10, 10))
 
+        # if not color values are passed, cmap is pointless and we want to avoid the warning
+        if not (isinstance(color, np.ndarray) and color.dtype.kind in "if"):
+            cmap = None
         ax.scatter(*embedding.T, s=size, c=color, cmap=cmap)
         ax.axis('off')
         ax.set_title(title, fontsize=20)
