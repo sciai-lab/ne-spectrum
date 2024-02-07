@@ -122,7 +122,7 @@ class Slider():
         if ax is None:
             fig, ax = plt.subplots(figsize=(10, 10), constrained_layout=True)
 
-        # if not color values are passed, cmap is pointless and we want to avoid the warning
+        # if no color values are passed, cmap is pointless and we want to avoid the warning
         if not (isinstance(color, np.ndarray) and color.dtype.kind in "if"):
             cmap = None
         ax.scatter(*embedding.T, s=size, c=color, cmap=cmap, edgecolor="none")
@@ -160,8 +160,6 @@ class Slider():
             ax.set_xlim([np.mean(bounds[0])-bound_diff[1]/2, np.mean(bounds[0])+bound_diff[1]/2])
 
         ylims = ax.get_ylim()
-        #ax.set_xlim(bounds[0])
-        #ax.set_ylim(bounds[1])
 
         ax.set_aspect('equal', "box")
 
@@ -192,28 +190,15 @@ class Slider():
         """
         if os.path.isdir(save_path) == False:
             os.makedirs(save_path)
-        #if bound_type == 'keep':
-        #    bounds = [[self.embeddings[:, :, 0].min(), self.embeddings[:, :, 0].max()], [self.embeddings[:, :, 1].min(), self.embeddings[:, :, 1].max()]]
-        #    bounds = 1.2*np.array(bounds)
         for i, embedding in enumerate(self.embeddings):
             fig, ax = plt.subplots(figsize=(10, 10))
-            # ###
-            # mean = np.mean(embedding, axis=0)
-            # #remove 5% of the points that are furthest away from the mean
-            # dist = np.linalg.norm(embedding - mean, axis=1)
-            # dist_sorted = np.sort(dist)
-            # dist_threshold = dist_sorted[int(0.95*len(dist_sorted))]
-            # embedding_trimmed = embedding[dist < dist_threshold]
-            # ###
 
             self._plot_embedding(embedding, size, color, cmap, bound_type, title = f'Exaggeration: {self.tsne_kwarg_list[i]["exaggeration"]:.1f}', ax=ax)
 
-            #set the bounds of the plot 10% larger than the embedding
-            #plt.savefig(save_path + prefix + str(i) + suffix, bbox_inches='tight', pad_inches=0.5)
-            plt.savefig(save_path + prefix + str(i) + suffix)
+            fig.savefig(os.path.join(save_path, prefix + str(i) + suffix))
             plt.close(fig)
 
-    def save_video(self, file_name = 'video.mp4', size =5.0, color = None, cmap = 'viridis', bound_type = 'trimmed_cov'):
+    def save_video(self, file_name='video.mp4', size=5.0, color=None, cmap='viridis', bound_type='trimmed_cov'):
         """
         Save the slides as a video
 
@@ -223,12 +208,9 @@ class Slider():
         :param cmap: Colormap for the scatter points
         :param keep_bounds: Whether to keep the bounds the same for all slides. Uses the maximum bounds of all slides.
         """
-        if bound_type == 'keep':
-            bounds = [[self.embeddings[:, :, 0].min(), self.embeddings[:, :, 0].max()], [self.embeddings[:, :, 1].min(), self.embeddings[:, :, 1].max()]]
-            bounds = 1.2*np.array(bounds)
-        fig = plt.figure(figsize=(10, 10))
-        plt.axis('off')
-        ax = plt.axes()
+
+        fig, ax = plt.subplots(figsize=(10, 10), constrained_layout=True)
+
         if self.embeddings is None:
             print('No embeddings fitted yet')
             return
@@ -243,7 +225,8 @@ class Slider():
 
             ax.clear()
             
-            return self._plot_embedding(embedding, size, color, cmap, bound_type, title = f'Exaggeration: {self.tsne_kwarg_list[f]["exaggeration"]:.1f}')
+            return self._plot_embedding(embedding, size, color, cmap, bound_type, title=f'Exaggeration: {self.tsne_kwarg_list[f]["exaggeration"]:.1f}', ax=ax)
         
         ani = animation.FuncAnimation(fig, update, frames=self.num_slides*2-1, interval=0, repeat=True, blit=False)
         ani.save(file_name, writer='ffmpeg', fps=9, dpi=300)
+        plt.close(fig)
