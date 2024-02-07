@@ -105,7 +105,7 @@ class Slider():
 
         return 10 ** (int(np.log10(spread * max_length)))
 
-    def _plot_embedding(self, embedding, size=0.3, color=None, cmap='viridis', bound_type='trimmed_cov', title=None, ax=None):
+    def _plot_embedding(self, embedding, size=5.0, color=None, cmap='viridis', bound_type='trimmed_cov', title=None, ax=None):
         """
         Plot the embedding. Returns the axis of the plot.
 
@@ -125,7 +125,7 @@ class Slider():
         # if not color values are passed, cmap is pointless and we want to avoid the warning
         if not (isinstance(color, np.ndarray) and color.dtype.kind in "if"):
             cmap = None
-        ax.scatter(*embedding.T, s=size, c=color, cmap=cmap)
+        ax.scatter(*embedding.T, s=size, c=color, cmap=cmap, edgecolor="none")
         ax.axis('off')
         ax.set_title(title, fontsize=20)
 
@@ -146,8 +146,8 @@ class Slider():
             cov_trimmed = np.cov(embedding_trimmed.T)
 
             #get bounds from covariance
-            bounds = [[mean_trimmed[0] - 3*np.sqrt(cov_trimmed[0, 0]), mean_trimmed[0] + 3*np.sqrt(cov_trimmed[0, 0])],
-                      [mean_trimmed[1] - 3*np.sqrt(cov_trimmed[1, 1]), mean_trimmed[1] + 3*np.sqrt(cov_trimmed[1, 1])]]
+            bounds = [[mean_trimmed[0] - 2.5*np.sqrt(cov_trimmed[0, 0]), mean_trimmed[0] + 2.5*np.sqrt(cov_trimmed[0, 0])],
+                      [mean_trimmed[1] - 2.5*np.sqrt(cov_trimmed[1, 1]), mean_trimmed[1] + 2.5*np.sqrt(cov_trimmed[1, 1])]]
             bounds = np.array(bounds)
 
         bound_diff = bounds[:, 1] - bounds[:, 0]
@@ -178,7 +178,7 @@ class Slider():
 
         return ax
 
-    def save_slides(self, prefix = 'slide', suffix = '.png', save_path = 'plots/', size = 0.3, color = None, cmap = 'viridis', bound_type = 'trimmed_cov'):
+    def save_slides(self, prefix='slide', suffix='.png', save_path='plots/', size=5.0, color=None, cmap='viridis', bound_type='trimmed_cov'):
         """
         Save the slides to a folder
 
@@ -213,7 +213,7 @@ class Slider():
             plt.savefig(save_path + prefix + str(i) + suffix)
             plt.close(fig)
 
-    def save_video(self, file_name = 'video.mp4', size = 0.3, color = None, cmap = 'viridis', bound_type = 'trimmed_cov'):
+    def save_video(self, file_name = 'video.mp4', size =5.0, color = None, cmap = 'viridis', bound_type = 'trimmed_cov'):
         """
         Save the slides as a video
 
