@@ -105,7 +105,7 @@ class Slider():
 
         return 10 ** (int(np.log10(spread * max_length)))
 
-    def _plot_embedding(self, embedding, size = 0.3, color = None, cmap = 'viridis', bound_type = 'trimmed_cov', title = None):
+    def _plot_embedding(self, embedding, size=0.3, color=None, cmap='viridis', bound_type='trimmed_cov', title=None, ax=None):
         """
         Plot the embedding. Returns the axis of the plot.
 
@@ -118,9 +118,13 @@ class Slider():
 
         :returns ax: The axis of the plot
         """
-        plt.scatter(*embedding.T, s=size, c=color, cmap=cmap)
-        plt.axis('off')
-        plt.title(title, fontsize=20)
+
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(10, 10))
+
+        ax.scatter(*embedding.T, s=size, c=color, cmap=cmap)
+        ax.axis('off')
+        ax.set_title(title, fontsize=20)
 
         if bound_type == 'max':
             bounds = [[embedding[:, 0].min(), embedding[:, 0].max()], [embedding[:, 1].min(), embedding[:, 1].max()]]
@@ -142,12 +146,11 @@ class Slider():
             bounds = [[mean_trimmed[0] - 3*np.sqrt(cov_trimmed[0,0]), mean_trimmed[0] + 3*np.sqrt(cov_trimmed[0,0])], 
                         [mean_trimmed[1] - 3*np.sqrt(cov_trimmed[1,1]), mean_trimmed[1] + 3*np.sqrt(cov_trimmed[1,1])]]
             
-        plt.xlim(bounds[0])
-        plt.ylim(bounds[1])
+        ax.set_xlim(bounds[0])
+        ax.set_ylim(bounds[1])
 
         scale = self._get_scale(embedding, max_length=0.5)
         fontprops = fm.FontProperties(size=18)
-        ax = plt.gca()
         scalebar = AnchoredSizeBar(ax.transData,
                         scale, f'{scale}', 'lower center', 
                         pad=0.1,
