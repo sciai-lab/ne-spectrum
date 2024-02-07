@@ -120,7 +120,7 @@ class Slider():
         """
 
         if ax is None:
-            fig, ax = plt.subplots(figsize=(10, 10))
+            fig, ax = plt.subplots(figsize=(10, 10), constrained_layout=True)
 
         # if not color values are passed, cmap is pointless and we want to avoid the warning
         if not (isinstance(color, np.ndarray) and color.dtype.kind in "if"):
@@ -146,11 +146,24 @@ class Slider():
             cov_trimmed = np.cov(embedding_trimmed.T)
 
             #get bounds from covariance
-            bounds = [[mean_trimmed[0] - 3*np.sqrt(cov_trimmed[0,0]), mean_trimmed[0] + 3*np.sqrt(cov_trimmed[0,0])], 
-                        [mean_trimmed[1] - 3*np.sqrt(cov_trimmed[1,1]), mean_trimmed[1] + 3*np.sqrt(cov_trimmed[1,1])]]
-            
-        ax.set_xlim(bounds[0])
-        ax.set_ylim(bounds[1])
+            bounds = [[mean_trimmed[0] - 3*np.sqrt(cov_trimmed[0, 0]), mean_trimmed[0] + 3*np.sqrt(cov_trimmed[0, 0])],
+                      [mean_trimmed[1] - 3*np.sqrt(cov_trimmed[1, 1]), mean_trimmed[1] + 3*np.sqrt(cov_trimmed[1, 1])]]
+            bounds = np.array(bounds)
+
+        bound_diff = bounds[:, 1] - bounds[:, 0]
+
+        if bound_diff[0] > bound_diff[1]:
+            ax.set_xlim(bounds[0])
+            ax.set_ylim([np.mean(bounds[1])-bound_diff[0]/2, np.mean(bounds[1])+bound_diff[0]/2])
+        else:
+            ax.set_ylim(bounds[1])
+            ax.set_xlim([np.mean(bounds[0])-bound_diff[1]/2, np.mean(bounds[0])+bound_diff[1]/2])
+
+        ylims = ax.get_ylim()
+        #ax.set_xlim(bounds[0])
+        #ax.set_ylim(bounds[1])
+
+        ax.set_aspect('equal', "box")
 
         scale = self._get_scale(embedding, max_length=0.5)
         fontprops = fm.FontProperties(size=18)
@@ -159,7 +172,7 @@ class Slider():
                         pad=0.1,
                         color='black',
                         frameon=False,
-                        size_vertical=0.005*(bounds[1][1] - bounds[1][0]),
+                        size_vertical=0.005*(ylims[1] - ylims[0]),
                         fontproperties=fontprops)
         ax.add_artist(scalebar)
 
@@ -179,11 +192,11 @@ class Slider():
         """
         if os.path.isdir(save_path) == False:
             os.makedirs(save_path)
-        if bound_type == 'keep':
-            bounds = [[self.embeddings[:, :, 0].min(), self.embeddings[:, :, 0].max()], [self.embeddings[:, :, 1].min(), self.embeddings[:, :, 1].max()]]
-            bounds = 1.2*np.array(bounds)
+        #if bound_type == 'keep':
+        #    bounds = [[self.embeddings[:, :, 0].min(), self.embeddings[:, :, 0].max()], [self.embeddings[:, :, 1].min(), self.embeddings[:, :, 1].max()]]
+        #    bounds = 1.2*np.array(bounds)
         for i, embedding in enumerate(self.embeddings):
-            fig = plt.figure(figsize=(10, 10))
+            fig, ax = plt.subplots(figsize=(10, 10))
             # ###
             # mean = np.mean(embedding, axis=0)
             # #remove 5% of the points that are furthest away from the mean
@@ -193,10 +206,11 @@ class Slider():
             # embedding_trimmed = embedding[dist < dist_threshold]
             # ###
 
-            self._plot_embedding(embedding, size, color, cmap, bound_type, title = f'Exaggeration: {self.tsne_kwarg_list[i]["exaggeration"]:.1f}')
+            self._plot_embedding(embedding, size, color, cmap, bound_type, title = f'Exaggeration: {self.tsne_kwarg_list[i]["exaggeration"]:.1f}', ax=ax)
 
             #set the bounds of the plot 10% larger than the embedding
-            plt.savefig(save_path + prefix + str(i) + suffix, bbox_inches='tight', pad_inches=0.5)
+            #plt.savefig(save_path + prefix + str(i) + suffix, bbox_inches='tight', pad_inches=0.5)
+            plt.savefig(save_path + prefix + str(i) + suffix)
             plt.close(fig)
 
     def save_video(self, file_name = 'video.mp4', size = 0.3, color = None, cmap = 'viridis', bound_type = 'trimmed_cov'):
