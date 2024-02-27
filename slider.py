@@ -105,7 +105,15 @@ class Slider():
 
         return 10 ** (int(np.log10(spread * max_length)))
 
-    def _plot_embedding(self, embedding, size=5.0, color=None, cmap='viridis', bound_type='trimmed_cov', title=None, ax=None):
+    def _plot_embedding(self,
+                        embedding,
+                        size=2.0,
+                        color=None,
+                        cmap='viridis',
+                        bound_type='trimmed_cov',
+                        title=None,
+                        ax=None,
+                        scalebar=True):
         """
         Plot the embedding. Returns the axis of the plot.
 
@@ -120,19 +128,38 @@ class Slider():
         """
 
         if ax is None:
-            fig, ax = plt.subplots(figsize=(10, 10), constrained_layout=True)
+            fig, ax = plt.subplots(figsize=(6.5, 6.5), constrained_layout=True)
 
         # if no color values are passed, cmap is pointless and we want to avoid the warning
         if not (isinstance(color, np.ndarray) and color.dtype.kind in "if"):
             cmap = None
         ax.scatter(*embedding.T, s=size, c=color, cmap=cmap, edgecolor="none")
         ax.axis('off')
-        ax.set_title(title, fontsize=20)
+        ax.set_title(title, fontsize=10)
 
         if bound_type == 'max':
             bounds = [[embedding[:, 0].min(), embedding[:, 0].max()], [embedding[:, 1].min(), embedding[:, 1].max()]]
             bounds = 1.2*np.array(bounds)
         elif bound_type == 'trimmed_cov':
+
+            if False: # attempt to make the embedding visually centered, rather than placing its arithmetic mean in the center. However, this leads to jumps.
+                max_coords = np.array([[embedding[:, 0].min(), embedding[:, 0].max()],
+                                       [embedding[:, 1].min(), embedding[:, 1].max()]])
+
+                visual_center = np.mean(max_coords, axis=1)
+
+                dist = np.linalg.norm(embedding - visual_center, axis=1)
+
+                dist_sorted = np.sort(dist)
+                dist_threshold = dist_sorted[int(0.95 * len(dist_sorted))]
+                embedding_trimmed = embedding[dist < dist_threshold] - visual_center
+
+                bounds = np.array([[embedding_trimmed[:, 0].min(), embedding_trimmed[:, 0].max()],
+                                   [embedding_trimmed[:, 1].min(), embedding_trimmed[:, 1].max()]])
+
+                bounds = bounds*1.1 + visual_center[:, None]
+
+
             #get mean
             mean = np.mean(embedding, axis=0)
             #remove 5% of the points that are furthest away from the mean
@@ -164,19 +191,28 @@ class Slider():
         ax.set_aspect('equal', "box")
 
         scale = self._get_scale(embedding, max_length=0.5)
-        fontprops = fm.FontProperties(size=18)
-        scalebar = AnchoredSizeBar(ax.transData,
-                        scale, f'{scale}', 'lower center', 
-                        pad=0.1,
-                        color='black',
-                        frameon=False,
-                        size_vertical=0.005*(ylims[1] - ylims[0]),
-                        fontproperties=fontprops)
-        ax.add_artist(scalebar)
+        fontprops = fm.FontProperties(size=9)
+
+        if scalebar:
+            scalebar = AnchoredSizeBar(ax.transData,
+                            scale, f'{scale}', 'lower center',
+                            pad=0.1,
+                            color='black',
+                            frameon=False,
+                            size_vertical=0.005*(ylims[1] - ylims[0]),
+                            fontproperties=fontprops)
+            ax.add_artist(scalebar)
 
         return ax
 
-    def save_slides(self, prefix='slide', suffix='.png', save_path='plots/', size=5.0, color=None, cmap='viridis', bound_type='trimmed_cov'):
+    def save_slides(self,
+                    prefix='slide',
+                    suffix='.png',
+                    save_path='plots/',
+                    size=2.0,
+                    color=None,
+                    cmap='viridis',
+                    bound_type='trimmed_cov'):
         """
         Save the slides to a folder
 
@@ -191,14 +227,14 @@ class Slider():
         if os.path.isdir(save_path) == False:
             os.makedirs(save_path)
         for i, embedding in enumerate(self.embeddings):
-            fig, ax = plt.subplots(figsize=(10, 10))
+            fig, ax = plt.subplots(figsize=(6.5, 6.5))
 
             self._plot_embedding(embedding, size, color, cmap, bound_type, title = f'Exaggeration: {self.tsne_kwarg_list[i]["exaggeration"]:.1f}', ax=ax)
 
             fig.savefig(os.path.join(save_path, prefix + str(i) + suffix))
             plt.close(fig)
 
-    def save_video(self, file_name='video.mp4', size=5.0, color=None, cmap='viridis', bound_type='trimmed_cov'):
+    def save_video(self, file_name='video.mp4', size=2.0, color=None, cmap='viridis', bound_type='trimmed_cov'):
         """
         Save the slides as a video
 
@@ -209,7 +245,7 @@ class Slider():
         :param keep_bounds: Whether to keep the bounds the same for all slides. Uses the maximum bounds of all slides.
         """
 
-        fig, ax = plt.subplots(figsize=(10, 10), constrained_layout=True)
+        fig, ax = plt.subplots(figsize=(6.5, 6.5), constrained_layout=True)
 
         if self.embeddings is None:
             print('No embeddings fitted yet')
