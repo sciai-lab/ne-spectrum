@@ -1,16 +1,35 @@
 from openTSNE import TSNE
+from cne import CNE
 import numpy as np
 import matplotlib.pyplot as plt
 import os
 import matplotlib.animation as animation
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 import matplotlib.font_manager as fm
+from functools import partial
 
 class Slider():
     """
     Slider class for openTSNE
     """
-    def __init__(self, num_slides = 60, use_previous_as_init = True, tsne_kwarg_list = None, min_exaggeration = 0.85, max_exaggeration = 30.0, verbose = True):
+    iter_name = None
+    early_exaggeration_iter_name = 0
+
+    early_exaggeration_name = None
+
+    spectrum_param_print_name = None
+    spectrum_param_name = None
+
+    def __init__(self,
+                 num_slides=60,
+                 use_previous_as_init=True,
+                 early_exaggeration=0,
+                 verbose=True,
+                 kwarg_list=None,
+                 min_spec_param=None,
+                 max_spec_param=None,
+                 **kwargs):
+
         """
         Initialize the Slider class
 
@@ -20,55 +39,101 @@ class Slider():
         :param min_exaggeration: Minimum exaggeration for the slides
         :param max_exaggeration: Maximum exaggeration for the slides
         :param verbose: Whether to print progress
+        :param early_exaggeration: Early exaggeration. If use_previous_as_init is True, this is only used in the first
+         slide. For t-SNE this is an int for the number of early exaggeration epochs. For CNE this is a bool for whether
+         to use early exaggeration.
         """
+        # store arguments
         self.num_slides = num_slides
         self.use_previous_as_init = use_previous_as_init
-        self.min_exaggeration = min_exaggeration
-        self.max_exaggeration = max_exaggeration
-        self.image_slides = None
         self.verbose = verbose
-
-        #if no tsne_kwarg_list is given, create it
-        if tsne_kwarg_list is None:
-            tsne_kwarg_list = [{} for i in range(num_slides)]
-            for i in range(num_slides):
-                if use_previous_as_init and i > 0:
-                    #When using previous as init, a lower number of iterations is sufficient
-                    tsne_kwarg_list[i]['n_iter'] = 50
-
-        #set the exaggeration for each slide if none is given. Default is logarithmically decreasing from max to min
-        exags = np.logspace(np.log10(min_exaggeration), np.log10(max_exaggeration), num_slides)
-        if 'exaggeration' not in tsne_kwarg_list[0]:
-            for i in range(num_slides):
-                tsne_kwarg_list[i]['exaggeration'] = exags[-i-1]
-
-        #set the number of early exaggeration iterations to 0 if not given
-        if 'early_exaggeration_iter' not in tsne_kwarg_list[0]:    
-            for i in range(num_slides):
-                tsne_kwarg_list[0]['early_exaggeration_iter'] = 0
-
-        if use_previous_as_init:
-            self.tsne_list =  [TSNE(**tsne_kwarg_list[0], verbose=verbose)]
-        else: 
-            self.tsne_list = [TSNE(**tsne_kwarg_list[i], verbose=verbose) for i in range(num_slides)]
-
-        self.tsne_kwarg_list = tsne_kwarg_list
+        self.early_exaggeration = early_exaggeration
+        self.kwarg_list = kwarg_list
+        self.min_spec_param = min_spec_param
+        self.max_spec_param = max_spec_param
         self.embeddings = None
+        self.embedder_list = None
 
-    def fit(self, X):
-        """
-        Fit the embeddings to the data
+        # create and populate the list of kwargs for the slides
+        set_iters = self._create_kwarg_list(kwargs)
+        self._set_iterations(set_iters)
+        self._set_verbosity()
+        self._set_spectrum_param()
+        self._set_early_exaggeration()
 
-        :param X: Data to fit
+    def _set_early_exaggeration(self):
         """
-        if self.use_previous_as_init:
-            self.embeddings = [self.tsne_list[0].fit(X)]
-            for i in range(1, self.num_slides):
-                self.embeddings.append(self.embeddings[i-1].optimize(**self.tsne_kwarg_list[i], verbose=self.verbose))
-            self.embeddings = np.array(self.embeddings)
+        Set the early exaggeration for the slides
+        """
+        # set the number of early exaggeration iterations
+        for i in range(self.num_slides):
+            if self.use_previous_as_init:
+                # there should not be any early exaggeration in the kwargs lists of the later slides!
+                if i > 0 and self.early_exaggeration_name in self.kwarg_list[i]:
+                    del self.kwarg_list[i][self.early_exaggeration_name]
+
+                # if early exaggeration is given in the kwarg_list, this has priority
+                if i == 0 and self.early_exaggeration_name not in self.kwarg_list[i]:
+                    self.kwarg_list[i][self.early_exaggeration_name] = self.early_exaggeration
+
+            else:
+                # any slide might have early exaggeration
+                # if early exaggeration is given in the kwarg_list, this has priority
+                if self.early_exaggeration_name not in self.kwarg_list[i]:
+                    self.kwarg_list[i][self.early_exaggeration_name] = self.early_exaggeration
+
+    def _set_spectrum_param(self):
+        # compute the intermediate spectrum parameters
+        self._get_intermediate_spectrum_params()
+
+        # set the exaggeration for each slide if none is given.
+        for i in range(self.num_slides):
+            if self.spectrum_param_name not in self.kwarg_list[i]:
+                self.kwarg_list[i][self.spectrum_param_name] = self.spectrum_params[i]
+
+    def _get_intermediate_spectrum_params(self):
+        """
+        Get the intermediate spectrum parameters
+        """
+        self.spectrum_params = None
+
+    def _set_verbosity(self):
+        """
+        Set the verbosity for the slides
+        """
+        pass
+
+    def print_spectrum_param(self, i):
+        """
+        Print the spectrum parameter
+        """
+        print(f"Slide {i} / {self.num_slides} "
+              f"with {self.spectrum_param_print_name}: {np.round(self.kwarg_list[i][self.spectrum_param_name], 2)}")
+
+    def _create_kwarg_list(self, kwargs):
+
+        # do iterations have to be set?
+        set_iters = False
+
+        # create list of kwarg dictionaries, one for each embedder
+        if self.kwarg_list is None:
+            self.kwarg_list = [{} for _ in range(self.num_slides)]
+            set_iters = True
+        elif type(self.kwarg_list) == dict:
+            self.kwarg_list = [self.kwarg_list.copy() for _ in range(self.num_slides)]
+            set_iters = True
         else:
-            self.embeddings = np.array([tsne.fit(X) for tsne in self.tsne_list])
-    
+            assert len(self.kwarg_list) == self.num_slides, \
+                "When passing a list for kwarg_list, its length must be equal to num_slides."
+        return set_iters
+
+    def _set_iterations(self, set_iters=False):
+        if set_iters:
+            for i in range(self.num_slides):
+                if self.use_previous_as_init and i > 0:
+                    # When using previous as init, a lower number of iterations is sufficient
+                    self.kwarg_list[i][self.iter_name] = 50
+
     def save_embeddings(self, file_name = 'embeddings.npy'):
         """
         Save the embeddings to a file
@@ -142,6 +207,7 @@ class Slider():
             bounds = 1.2*np.array(bounds)
         elif bound_type == 'trimmed_cov':
 
+            # todo omit this
             if False: # attempt to make the embedding visually centered, rather than placing its arithmetic mean in the center. However, this leads to jumps.
                 max_coords = np.array([[embedding[:, 0].min(), embedding[:, 0].max()],
                                        [embedding[:, 1].min(), embedding[:, 1].max()]])
@@ -212,7 +278,8 @@ class Slider():
                     size=2.0,
                     color=None,
                     cmap='viridis',
-                    bound_type='trimmed_cov'):
+                    bound_type='trimmed_cov',
+                    title=None):
         """
         Save the slides to a folder
 
@@ -229,15 +296,24 @@ class Slider():
         for i, embedding in enumerate(self.embeddings):
             fig, ax = plt.subplots(figsize=(6.5, 6.5))
 
-            self._plot_embedding(embedding, size, color, cmap, bound_type, title = f'Exaggeration: {self.tsne_kwarg_list[i]["exaggeration"]:.1f}', ax=ax)
+            if title is None:
+                title = f'{self.spectrum_param_print_name}: {self.kwarg_list[i][self.spectrum_param_name]:.1f}'
+
+            self._plot_embedding(embedding,
+                                 size,
+                                 color,
+                                 cmap,
+                                 bound_type,
+                                 title=title,
+                                 ax=ax)
 
             fig.savefig(os.path.join(save_path, prefix + str(i) + suffix))
             plt.close(fig)
 
-    def save_video(self, file_name='video.mp4', size=2.0, color=None, cmap='viridis', bound_type='trimmed_cov'):
+    def save_video(self, save_path, file_name='video.mp4', size=2.0, color=None, cmap='viridis', bound_type='trimmed_cov', title=None, **kwargs):
         """
         Save the slides as a video
-
+        #todo comment on gif vs mp4
         :param file_name: Name of the file to save the video to
         :param size: Size of the scatter points
         :param color: Color of the scatter points
@@ -251,7 +327,7 @@ class Slider():
             print('No embeddings fitted yet')
             return
 
-        def update(frame):
+        def update(frame, title=None, ax=ax):
             if frame < self.num_slides:
                 f = frame
             else:
@@ -260,9 +336,210 @@ class Slider():
             embedding = self.embeddings[f]
 
             ax.clear()
-            
-            return self._plot_embedding(embedding, size, color, cmap, bound_type, title=f'Exaggeration: {self.tsne_kwarg_list[f]["exaggeration"]:.1f}', ax=ax)
-        
+
+            if title is None:
+                title = f"{self.spectrum_param_print_name}: {self.kwarg_list[f][self.spectrum_param_name]:.1f}"
+
+            return self._plot_embedding(embedding,
+                                        size,
+                                        color,
+                                        cmap,
+                                        bound_type,
+                                        title=title,
+                                        ax=ax,
+                                        **kwargs)
+
+        update = partial(update, title=title, ax=ax)
+
         ani = animation.FuncAnimation(fig, update, frames=self.num_slides*2-1, interval=0, repeat=True, blit=False)
-        ani.save(file_name, writer='ffmpeg', fps=9, dpi=300)
+
+        os.makedirs(save_path, exist_ok=True)
+        ani.save(os.path.join(save_path, file_name), writer='ffmpeg', fps=9, dpi=300)
         plt.close(fig)
+
+
+
+class TSNESlider(Slider):
+    iter_name = "n_iter"
+    embedder_class = TSNE
+    spectrum_param_name = 'exaggeration'
+    spectrum_param_print_name = 'Exaggeration'
+    early_exaggeration_name = 'early_exaggeration_iter'
+    def __init__(self,
+                 num_slides=60,
+                 use_previous_as_init=True,
+                 early_exaggeration=0,
+                 kwarg_list=None,
+                 min_exaggeration=0.85,  # todo add a more abstract spectrum argument
+                 max_exaggeration=30.0,
+                 verbose=True,
+                 **kwargs):
+        super().__init__(num_slides=num_slides,
+                         use_previous_as_init=use_previous_as_init,
+                         verbose=verbose,
+                         early_exaggeration=early_exaggeration,
+                         kwarg_list=kwarg_list,
+                         min_spec_param=min_exaggeration,
+                         max_spec_param=max_exaggeration,
+                         **kwargs
+                         )
+        # create embedders according to the kwarg_list
+        self.create_embedder_list()
+
+    def _get_intermediate_spectrum_params(self):
+        # for t-SNE, the spectrum parameter is the exaggeration. We want to have a logarithmically decreasing spectrum
+        self.spectrum_params = np.logspace(np.log10(self.min_spec_param),
+                                           np.log10(self.max_spec_param),
+                                           self.num_slides)[::-1]
+
+    def create_embedder_list(self):
+        """
+        Create a list of embedders
+        """
+        if self.use_previous_as_init:
+            self.embedder_list = [self.embedder_class(**self.kwarg_list[0])]
+        else:
+            self.embedder_list = [self.embedder_class(**self.kwarg_list[i]) for i in range(self.num_slides)]
+
+
+    def _set_verbosity(self):
+        # set verbosity
+        for i in range(self.num_slides):
+            if "verbose" not in self.kwarg_list[i]:
+                self.kwarg_list[i]["verbose"] = self.verbose
+
+    def fit(self, X):
+        """
+        Fit the embeddings to the data
+
+        :param X: Data to fit
+        """
+
+        if self.use_previous_as_init:
+            self.print_spectrum_param(0)
+            self.embeddings = [self.embedder_list[0].fit(X)]
+            for i in range(1, self.num_slides):
+                self.print_spectrum_param(i)
+                self.embeddings.append(self.embeddings[i-1].optimize(n_iter=self.kwarg_list[i]["n_iter"],
+                                                                     exaggeration=self.kwarg_list[i]["exaggeration"],
+                                                                     )
+                                       )
+        else:
+            self.embeddings = []
+            for i, embedder in enumerate(self.embedder_list):
+                self.print_spectrum_param(i)
+                self.embeddings.append(embedder.fit(X))
+        self.embeddings = np.array(self.embeddings)
+
+
+class CNESlider(Slider):
+    iter_name = "n_epochs"
+    embedder_class = CNE
+    spectrum_param_name = 's'
+    spectrum_param_print_name = 'Spectrum parameter'
+    early_exaggeration_name = 'early_exaggeration'
+
+    def __init__(self,
+                 num_slides=60,
+                 use_previous_as_init=True,
+                 min_spec_param=-0.1,  # 0 is tsne, 1 is UMAP
+                 max_spec_param=2.0,
+                 kwarg_list=None,
+                 verbose=True,
+                 warmup=False,
+                 overall_decay=None,
+                 **kwargs):
+        super().__init__(num_slides=num_slides,
+                         use_previous_as_init=use_previous_as_init,
+                         verbose=verbose,
+                         kwarg_list=kwarg_list,
+                         min_spec_param=min_spec_param,
+                         max_spec_param=max_spec_param,
+                            **kwargs)
+
+
+        # add arguments for learning rate schedule to kwarg_list
+        self.warmup = warmup
+        self.overall_decay = overall_decay
+        self._set_learning_rate()
+
+        # create embedders according to the kwarg_list
+        self.create_embedder_list()
+
+    def _get_intermediate_spectrum_params(self):
+        # for CNE, the spectrum parameter is "s". We want to have a linearly increasing spectrum as this is in log space
+        # already
+        self.spectrum_params = np.linspace(self.min_spec_param,
+                                           self.max_spec_param,
+                                           self.num_slides)[::-1]
+
+    def _set_learning_rate(self):
+
+        if self.warmup:
+            warmup_share = 0.25
+
+            for i in range(self.num_slides):
+                # if a number of epochs is given, use a share of these for warmup, otherwise use a small default number
+                if self.iter_name in self.kwarg_list[i]:
+                    iter_slide = self.kwarg_list[i][self.iter_name]
+                    warmup_slide = int(warmup_share * iter_slide)
+                    self.kwarg_list[i]['warmup_epochs'] = warmup_slide
+                else:
+                    self.kwarg_list[i]['warmup_epochs'] = 10
+
+                self.kwarg_list[i]['warmup_lr'] = 0.01
+
+        if self.overall_decay == "linear":
+            for i in range(self.num_slides):
+                self.kwarg_list[i]['learning_rate'] = (1 - i / self.num_slides)
+        elif self.overall_decay == "half_linear":
+            for i in range(1, self.num_slides):
+                self.kwarg_list[i]['learning_rate'] = 0.5 * (1 - (i-1) / (self.num_slides-1))
+        elif self.overall_decay == "quarter_linear":
+            for i in range(1, self.num_slides):
+                self.kwarg_list[i]['learning_rate'] = 0.25 * (1 - (i-1) / (self.num_slides-1))
+        elif self.overall_decay == "quarter":
+            for i in range(1, self.num_slides):
+                self.kwarg_list[i]['learning_rate'] = 0.25
+
+    def _set_verbosity(self):
+        # set verbosity
+        for i in range(self.num_slides):
+            if "print_freq_epoch" not in self.kwarg_list[i]:
+                if self.verbose:
+                    self.kwarg_list[i]["print_freq_epoch"] = "auto"
+                else:
+                    self.kwarg_list[i]["print_freq_epoch"] = None
+
+    def create_embedder_list(self):
+        """
+        Create a list of embedders
+        """
+        self.embedder_list = [self.embedder_class(**self.kwarg_list[i]) for i in range(self.num_slides)]
+
+    def fit(self, X):
+        """
+        Fit the embeddings to the data
+
+        :param X: Data to fit
+        """
+
+        if self.use_previous_as_init:
+            self.print_spectrum_param(0)
+            self.embeddings = [self.embedder_list[0].fit_transform(X)]
+            graph = self.embedder_list[0].neighbor_mat
+            for i in range(1, self.num_slides):
+                self.print_spectrum_param(i)
+                self.embeddings.append(self.embedder_list[i].fit_transform(X, graph=graph, init=self.embeddings[i-1]))
+        else:
+            self.embeddings = []
+            for i, embedder in enumerate(self.embedder_list):
+                self.print_spectrum_param(i)
+                self.embeddings.append(embedder.fit_transform(X))
+        self.embeddings = np.array(self.embeddings)
+
+
+
+
+
+
