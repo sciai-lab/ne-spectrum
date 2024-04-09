@@ -227,26 +227,6 @@ class Slider():
             bounds = [[embedding[:, 0].min(), embedding[:, 0].max()], [embedding[:, 1].min(), embedding[:, 1].max()]]
             bounds = 1.2*np.array(bounds)
         elif bound_type == 'trimmed_cov':
-
-            # todo omit this
-            if False: # attempt to make the embedding visually centered, rather than placing its arithmetic mean in the center. However, this leads to jumps.
-                max_coords = np.array([[embedding[:, 0].min(), embedding[:, 0].max()],
-                                       [embedding[:, 1].min(), embedding[:, 1].max()]])
-
-                visual_center = np.mean(max_coords, axis=1)
-
-                dist = np.linalg.norm(embedding - visual_center, axis=1)
-
-                dist_sorted = np.sort(dist)
-                dist_threshold = dist_sorted[int(0.95 * len(dist_sorted))]
-                embedding_trimmed = embedding[dist < dist_threshold] - visual_center
-
-                bounds = np.array([[embedding_trimmed[:, 0].min(), embedding_trimmed[:, 0].max()],
-                                   [embedding_trimmed[:, 1].min(), embedding_trimmed[:, 1].max()]])
-
-                bounds = bounds*1.1 + visual_center[:, None]
-
-
             #get mean
             mean = np.mean(embedding, axis=0)
             #remove 5% of the points that are furthest away from the mean
