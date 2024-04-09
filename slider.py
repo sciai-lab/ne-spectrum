@@ -38,10 +38,15 @@ class Slider():
         :param tsne_kwarg_list: List of dictionaries with keyword arguments for the TSNE class. If None, a default list is created
         :param min_exaggeration: Minimum exaggeration for the slides
         :param max_exaggeration: Maximum exaggeration for the slides
-        :param verbose: Whether to print progress
+        :param verbose: Whether to print progress inside each method. Overall progress over slides is always printed.
         :param early_exaggeration: Early exaggeration. If use_previous_as_init is True, this is only used in the first
          slide. For t-SNE this is an int for the number of early exaggeration epochs. For CNE this is a bool for whether
          to use early exaggeration.
+        :param kwargs: Additional keyword arguments for the embedding method (TSNE or CNE class).
+         Should be None, one dictionary, or a list with one dictionary for each slide. If None a default list is created.
+         If one dictionary is given, this is used for all slides.
+        :param min_spec_param: Minimum value for the spectrum parameter (exaggeration in t-SNE, s in CNE)
+        :param max_spec_param: Maximum value for the spectrum parameter (exaggeration in t-SNE, s in CNE)
         """
         # store arguments
         self.num_slides = num_slides
@@ -83,10 +88,10 @@ class Slider():
                     self.kwarg_list[i][self.early_exaggeration_name] = self.early_exaggeration
 
     def _set_spectrum_param(self):
-        # compute the intermediate spectrum parameters
+        # compute the intermediate spectrum parameters used for each slide
         self._get_intermediate_spectrum_params()
 
-        # set the exaggeration for each slide if none is given.
+        # set the spectrum parameters for each slide if none is given.
         for i in range(self.num_slides):
             if self.spectrum_param_name not in self.kwarg_list[i]:
                 self.kwarg_list[i][self.spectrum_param_name] = self.spectrum_params[i]
@@ -105,13 +110,18 @@ class Slider():
 
     def print_spectrum_param(self, i):
         """
-        Print the spectrum parameter
+        Print the spectrum parameter. Default printing, cannot be switched off.
         """
         print(f"Slide {i} / {self.num_slides} "
               f"with {self.spectrum_param_print_name}: {np.round(self.kwarg_list[i][self.spectrum_param_name], 2)}")
 
     def _create_kwarg_list(self, kwargs):
+        """
+        Create a list of kwargs for the slides. If no kwarg_list exists and new one is created without any items.
+        If a single dictionary is given, this is used for all slides. If additional kwargs are given in the constructor,
+        these are added to all slides, if not already present in the dictionary.
 
+        """
         # do iterations have to be set?
         set_iters = False
 
@@ -123,11 +133,22 @@ class Slider():
             self.kwarg_list = [self.kwarg_list.copy() for _ in range(self.num_slides)]
             set_iters = True
         else:
+            # here we assume that iterations are already set
             assert len(self.kwarg_list) == self.num_slides, \
                 "When passing a list for kwarg_list, its length must be equal to num_slides."
+
+        # add the additional kwarg arguments, unless the key is already present in the dictionary
+        for i in range(self.num_slides):
+            for key, value in kwargs.items():
+                if key not in self.kwarg_list[i]:
+                    self.kwarg_list[i][key] = value
         return set_iters
 
     def _set_iterations(self, set_iters=False):
+        """
+        Set the number of iterations for the slides. If use_previous_as_init is True, the number of iterations
+        is reduced for the subsequent slides to 50 iterations. Otherwise, we stick to the default number of iterations.
+        """
         if set_iters:
             for i in range(self.num_slides):
                 if self.use_previous_as_init and i > 0:
