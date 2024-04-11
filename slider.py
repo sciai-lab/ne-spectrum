@@ -8,7 +8,107 @@ from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 import matplotlib.font_manager as fm
 from functools import partial
 
-class Slider():
+
+def _get_scale(embedding, max_length=0.5):
+    """
+    Return the smallest power of 10 that is smaller than max_length * the
+    spread in the x direction
+
+    :returns scale: The scale
+    """
+    spreads = embedding.max(0) - embedding.min(0)
+    spread = spreads.max()
+
+    return 10 ** (int(np.log10(spread * max_length)))
+
+
+def _plot_embedding(embedding,
+                    size=2.0,
+                    color=None,
+                    cmap='viridis',
+                    bound_type='trimmed_cov',
+                    title=None,
+                    ax=None,
+                    scalebar=True):
+    """
+    Plot the embedding. Returns the axis of the plot.
+
+    :param embedding: The embedding to plot
+    :param size: Size of the scatter points
+    :param color: Color of the scatter points
+    :param cmap: Colormap for the scatter points
+    :param bound_type: Type of bounds to use. Can be 'max' or 'trimmed_cov'
+    :param title: Title of the plot. If None, no title is added.
+    :param ax: Existing axis to plot on
+    :param scalebar: Whether to add a scalebar to the plot
+
+    :returns ax: The axis of the plot
+    """
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6.5, 6.5), constrained_layout=True)
+
+    # if no color values are passed, cmap is pointless and we want to avoid the warning
+    if not (isinstance(color, np.ndarray) and color.dtype.kind in "if"):
+        cmap = None
+    ax.scatter(*embedding.T, s=size, c=color, cmap=cmap, edgecolor="none")
+    ax.axis('off')
+    ax.set_title(title, fontsize=10)
+
+    if bound_type == 'max':
+        bounds = [[embedding[:, 0].min(), embedding[:, 0].max()], [embedding[:, 1].min(), embedding[:, 1].max()]]
+        bounds = 1.2*np.array(bounds)
+    elif bound_type == 'trimmed_cov':
+
+        # get mean
+        mean = np.mean(embedding, axis=0)
+        # remove 5% of the points that are furthest away from the mean
+        dist = np.linalg.norm(embedding - mean, axis=1)
+        dist_sorted = np.sort(dist)
+        dist_threshold = dist_sorted[int(0.95*len(dist_sorted))]
+        embedding_trimmed = embedding[dist < dist_threshold]
+
+        # get trimmed mean and covariance
+        mean_trimmed = np.mean(embedding_trimmed, axis=0)
+        cov_trimmed = np.cov(embedding_trimmed.T)
+
+        # get bounds from covariance
+        bounds = [[mean_trimmed[0] - 2.5*np.sqrt(cov_trimmed[0, 0]), mean_trimmed[0] + 2.5*np.sqrt(cov_trimmed[0, 0])],
+                  [mean_trimmed[1] - 2.5*np.sqrt(cov_trimmed[1, 1]), mean_trimmed[1] + 2.5*np.sqrt(cov_trimmed[1, 1])]]
+        bounds = np.array(bounds)
+    else:
+        raise ValueError(f"bound_type {bound_type} not recognized. Must be 'max' or 'trimmed_cov'.")
+
+    bound_diff = bounds[:, 1] - bounds[:, 0]
+
+    if bound_diff[0] > bound_diff[1]:
+        ax.set_xlim(bounds[0])
+        ax.set_ylim([np.mean(bounds[1])-bound_diff[0]/2, np.mean(bounds[1])+bound_diff[0]/2])
+    else:
+        ax.set_ylim(bounds[1])
+        ax.set_xlim([np.mean(bounds[0])-bound_diff[1]/2, np.mean(bounds[0])+bound_diff[1]/2])
+
+    ylims = ax.get_ylim()
+
+    ax.set_aspect('equal', "box")
+
+    scale = _get_scale(embedding, max_length=0.5)
+    fontprops = fm.FontProperties(size=9)
+
+    if scalebar:
+        scalebar = AnchoredSizeBar(ax.transData,
+                                   scale, f'{scale}', 'lower center',
+                                   pad=0.1,
+                                   color='black',
+                                   frameon=False,
+                                   size_vertical=0.005*(ylims[1] - ylims[0]),
+                                   fontproperties=fontprops)
+        ax.add_artist(scalebar)
+
+    return ax
+
+
+class Slider:
     """
     Slider class for openTSNE
     """
@@ -35,7 +135,8 @@ class Slider():
 
         :param num_slides: Number of slides to create
         :param use_previous_as_init: Whether to use the previous slide as initialization for the next slide
-        :param tsne_kwarg_list: List of dictionaries with keyword arguments for the TSNE class. If None, a default list is created
+        :param tsne_kwarg_list: List of dictionaries with keyword arguments for the TSNE class. If None, a default list
+        is created
         :param min_exaggeration: Minimum exaggeration for the slides
         :param max_exaggeration: Maximum exaggeration for the slides
         :param verbose: Whether to print progress inside each method. Overall progress over slides is always printed.
@@ -129,7 +230,7 @@ class Slider():
         if self.kwarg_list is None:
             self.kwarg_list = [{} for _ in range(self.num_slides)]
             set_iters = True
-        elif type(self.kwarg_list) == dict:
+        elif self.kwarg_list is dict:
             self.kwarg_list = [self.kwarg_list.copy() for _ in range(self.num_slides)]
             set_iters = True
         else:
@@ -155,7 +256,7 @@ class Slider():
                     # When using previous as init, a lower number of iterations is sufficient
                     self.kwarg_list[i][self.iter_name] = 50
 
-    def save_embeddings(self, file_name = 'embeddings.npy'):
+    def save_embeddings(self, file_name='embeddings.npy'):
         """
         Save the embeddings to a file
 
@@ -163,7 +264,7 @@ class Slider():
         """
         np.save(file_name, self.embeddings)
     
-    def load_embeddings(self, file_name = 'embeddings.npy'):
+    def load_embeddings(self, file_name='embeddings.npy'):
         """
         Load the embeddings from a file
 
@@ -178,99 +279,6 @@ class Slider():
         :returns embeddings: The embeddings
         """
         return self.embeddings
-    
-    def _get_scale(self, embedding, max_length=0.5):
-        """
-        Return the smallest power of 10 that is smaller than max_length * the 
-        spread in the x direction
-        
-        :returns scale: The scale
-        """
-        spreads = embedding.max(0) - embedding.min(0)
-        spread = spreads.max()
-
-        return 10 ** (int(np.log10(spread * max_length)))
-
-    def _plot_embedding(self,
-                        embedding,
-                        size=2.0,
-                        color=None,
-                        cmap='viridis',
-                        bound_type='trimmed_cov',
-                        title=None,
-                        ax=None,
-                        scalebar=True):
-        """
-        Plot the embedding. Returns the axis of the plot.
-
-        :param embedding: The embedding to plot
-        :param size: Size of the scatter points
-        :param color: Color of the scatter points
-        :param cmap: Colormap for the scatter points
-        :param bound_type: Type of bounds to use. Can be 'max' or 'trimmed_cov'
-        :param title: Title of the plot
-
-        :returns ax: The axis of the plot
-        """
-
-        if ax is None:
-            fig, ax = plt.subplots(figsize=(6.5, 6.5), constrained_layout=True)
-
-        # if no color values are passed, cmap is pointless and we want to avoid the warning
-        if not (isinstance(color, np.ndarray) and color.dtype.kind in "if"):
-            cmap = None
-        ax.scatter(*embedding.T, s=size, c=color, cmap=cmap, edgecolor="none")
-        ax.axis('off')
-        ax.set_title(title, fontsize=10)
-
-        if bound_type == 'max':
-            bounds = [[embedding[:, 0].min(), embedding[:, 0].max()], [embedding[:, 1].min(), embedding[:, 1].max()]]
-            bounds = 1.2*np.array(bounds)
-        elif bound_type == 'trimmed_cov':
-            #get mean
-            mean = np.mean(embedding, axis=0)
-            #remove 5% of the points that are furthest away from the mean
-            dist = np.linalg.norm(embedding - mean, axis=1)
-            dist_sorted = np.sort(dist)
-            dist_threshold = dist_sorted[int(0.95*len(dist_sorted))]
-            embedding_trimmed = embedding[dist < dist_threshold]
-
-            #get trimmed mean and covariance
-            mean_trimmed = np.mean(embedding_trimmed, axis=0)
-            cov_trimmed = np.cov(embedding_trimmed.T)
-
-            #get bounds from covariance
-            bounds = [[mean_trimmed[0] - 2.5*np.sqrt(cov_trimmed[0, 0]), mean_trimmed[0] + 2.5*np.sqrt(cov_trimmed[0, 0])],
-                      [mean_trimmed[1] - 2.5*np.sqrt(cov_trimmed[1, 1]), mean_trimmed[1] + 2.5*np.sqrt(cov_trimmed[1, 1])]]
-            bounds = np.array(bounds)
-
-        bound_diff = bounds[:, 1] - bounds[:, 0]
-
-        if bound_diff[0] > bound_diff[1]:
-            ax.set_xlim(bounds[0])
-            ax.set_ylim([np.mean(bounds[1])-bound_diff[0]/2, np.mean(bounds[1])+bound_diff[0]/2])
-        else:
-            ax.set_ylim(bounds[1])
-            ax.set_xlim([np.mean(bounds[0])-bound_diff[1]/2, np.mean(bounds[0])+bound_diff[1]/2])
-
-        ylims = ax.get_ylim()
-
-        ax.set_aspect('equal', "box")
-
-        scale = self._get_scale(embedding, max_length=0.5)
-        fontprops = fm.FontProperties(size=9)
-
-        if scalebar:
-            scalebar = AnchoredSizeBar(ax.transData,
-                            scale, f'{scale}', 'lower center',
-                            pad=0.1,
-                            color='black',
-                            frameon=False,
-                            size_vertical=0.005*(ylims[1] - ylims[0]),
-                            fontproperties=fontprops)
-            ax.add_artist(scalebar)
-
-        return ax
 
     def save_slides(self,
                     prefix='slide',
@@ -280,7 +288,8 @@ class Slider():
                     color=None,
                     cmap='viridis',
                     bound_type='trimmed_cov',
-                    title=None):
+                    title=None,
+                    scalebar=True):
         """
         Save the slides to a folder
 
@@ -290,9 +299,11 @@ class Slider():
         :param size: Size of the scatter points
         :param color: Color of the scatter points
         :param cmap: Colormap for the scatter points
-        :param keep_bounds: Whether to keep the bounds the same for all slides. Uses the maximum bounds of all slides.
+        :param bound_type: Type of bounds to use. Can be 'max' or 'trimmed_cov'
+        :param title: Title of the plot. If None, default title based on the spectrum parameter is used.
+        :param scalebar: Whether to add a scalebar to the plot
         """
-        if os.path.isdir(save_path) == False:
+        if not os.path.isdir(save_path):
             os.makedirs(save_path)
         for i, embedding in enumerate(self.embeddings):
             fig, ax = plt.subplots(figsize=(6.5, 6.5))
@@ -300,26 +311,39 @@ class Slider():
             if title is None:
                 title = f'{self.spectrum_param_print_name}: {self.kwarg_list[i][self.spectrum_param_name]:.1f}'
 
-            self._plot_embedding(embedding,
-                                 size,
-                                 color,
-                                 cmap,
-                                 bound_type,
-                                 title=title,
-                                 ax=ax)
+            _plot_embedding(embedding=embedding,
+                            size=size,
+                            color=color,
+                            cmap=cmap,
+                            bound_type=bound_type,
+                            title=title,
+                            ax=ax,
+                            scalebar=scalebar)
 
             fig.savefig(os.path.join(save_path, prefix + str(i) + suffix))
             plt.close(fig)
 
-    def save_video(self, save_path, file_name='video.mp4', size=2.0, color=None, cmap='viridis', bound_type='trimmed_cov', title=None, **kwargs):
+    def save_video(self,
+                   save_path,
+                   file_name='video.mp4',
+                   size=2.0,
+                   color=None,
+                   cmap='viridis',
+                   bound_type='trimmed_cov',
+                   title=None,
+                   **kwargs):
         """
         Save the slides as a video
-        #todo comment on gif vs mp4
-        :param file_name: Name of the file to save the video to
+
+        :param save_path: Path to the folder to save the video to
+        :param file_name: Name of the file to save the video to. If file_name ends in ".gif", the video is saved as GIF.
+        Otherwise, the video is saved as mp4.
         :param size: Size of the scatter points
         :param color: Color of the scatter points
         :param cmap: Colormap for the scatter points
-        :param keep_bounds: Whether to keep the bounds the same for all slides. Uses the maximum bounds of all slides.
+        :param bound_type: Type of bounds to use. Can be 'max' or 'trimmed_cov'
+        :param title: Title of the plot. If None, default title based on the spectrum parameter is used.
+        :param kwargs: Additional keyword arguments for the _plot_embedding method.
         """
 
         fig, ax = plt.subplots(figsize=(6.5, 6.5), constrained_layout=True)
@@ -329,6 +353,7 @@ class Slider():
             return
 
         def update(frame, title=None, ax=ax):
+            # for mirroring the slides during the animation
             if frame < self.num_slides:
                 f = frame
             else:
@@ -341,23 +366,26 @@ class Slider():
             if title is None:
                 title = f"{self.spectrum_param_print_name}: {self.kwarg_list[f][self.spectrum_param_name]:.1f}"
 
-            return self._plot_embedding(embedding,
-                                        size,
-                                        color,
-                                        cmap,
-                                        bound_type,
-                                        title=title,
-                                        ax=ax,
-                                        **kwargs)
+            return _plot_embedding(embedding=embedding,
+                                   size=size,
+                                   color=color,
+                                   cmap=cmap,
+                                   bound_type=bound_type,
+                                   title=title,
+                                   ax=ax,
+                                   **kwargs)
 
         update = partial(update, title=title, ax=ax)
 
         ani = animation.FuncAnimation(fig, update, frames=self.num_slides*2-1, interval=0, repeat=True, blit=False)
 
         os.makedirs(save_path, exist_ok=True)
+
+        if not file_name.endswith('.gif') and not file_name.endswith('.mp4'):
+            file_name = file_name + '.mp4'
+
         ani.save(os.path.join(save_path, file_name), writer='ffmpeg', fps=9, dpi=300)
         plt.close(fig)
-
 
 
 class TSNESlider(Slider):
@@ -366,12 +394,13 @@ class TSNESlider(Slider):
     spectrum_param_name = 'exaggeration'
     spectrum_param_print_name = 'Exaggeration'
     early_exaggeration_name = 'early_exaggeration_iter'
+
     def __init__(self,
                  num_slides=60,
                  use_previous_as_init=True,
                  early_exaggeration=0,
                  kwarg_list=None,
-                 min_exaggeration=0.85,  # todo add a more abstract spectrum argument
+                 min_exaggeration=0.85,
                  max_exaggeration=30.0,
                  verbose=True,
                  **kwargs):
@@ -388,7 +417,8 @@ class TSNESlider(Slider):
         self.create_embedder_list()
 
     def _get_intermediate_spectrum_params(self):
-        # for t-SNE, the spectrum parameter is the exaggeration. We want to have a logarithmically decreasing spectrum
+        # for t-SNE, the spectrum parameter is the exaggeration. We want to have a logarithmically decreasing
+        # exaggeration.
         self.spectrum_params = np.logspace(np.log10(self.min_spec_param),
                                            np.log10(self.max_spec_param),
                                            self.num_slides)[::-1]
@@ -402,23 +432,22 @@ class TSNESlider(Slider):
         else:
             self.embedder_list = [self.embedder_class(**self.kwarg_list[i]) for i in range(self.num_slides)]
 
-
     def _set_verbosity(self):
         # set verbosity
         for i in range(self.num_slides):
             if "verbose" not in self.kwarg_list[i]:
                 self.kwarg_list[i]["verbose"] = self.verbose
 
-    def fit(self, X):
+    def fit(self, x):
         """
         Fit the embeddings to the data
 
-        :param X: Data to fit
+        :param x: Data to fit
         """
 
         if self.use_previous_as_init:
             self.print_spectrum_param(0)
-            self.embeddings = [self.embedder_list[0].fit(X)]
+            self.embeddings = [self.embedder_list[0].fit(x)]
             for i in range(1, self.num_slides):
                 self.print_spectrum_param(i)
                 self.embeddings.append(self.embeddings[i-1].optimize(n_iter=self.kwarg_list[i]["n_iter"],
@@ -429,7 +458,7 @@ class TSNESlider(Slider):
             self.embeddings = []
             for i, embedder in enumerate(self.embedder_list):
                 self.print_spectrum_param(i)
-                self.embeddings.append(embedder.fit(X))
+                self.embeddings.append(embedder.fit(x))
         self.embeddings = np.array(self.embeddings)
 
 
@@ -456,8 +485,7 @@ class CNESlider(Slider):
                          kwarg_list=kwarg_list,
                          min_spec_param=min_spec_param,
                          max_spec_param=max_spec_param,
-                            **kwargs)
-
+                         **kwargs)
 
         # add arguments for learning rate schedule to kwarg_list
         self.warmup = warmup
@@ -518,29 +546,23 @@ class CNESlider(Slider):
         """
         self.embedder_list = [self.embedder_class(**self.kwarg_list[i]) for i in range(self.num_slides)]
 
-    def fit(self, X):
+    def fit(self, x):
         """
         Fit the embeddings to the data
 
-        :param X: Data to fit
+        :param x: Data to fit
         """
 
         if self.use_previous_as_init:
             self.print_spectrum_param(0)
-            self.embeddings = [self.embedder_list[0].fit_transform(X)]
+            self.embeddings = [self.embedder_list[0].fit_transform(x)]
             graph = self.embedder_list[0].neighbor_mat
             for i in range(1, self.num_slides):
                 self.print_spectrum_param(i)
-                self.embeddings.append(self.embedder_list[i].fit_transform(X, graph=graph, init=self.embeddings[i-1]))
+                self.embeddings.append(self.embedder_list[i].fit_transform(x, graph=graph, init=self.embeddings[i-1]))
         else:
             self.embeddings = []
             for i, embedder in enumerate(self.embedder_list):
                 self.print_spectrum_param(i)
-                self.embeddings.append(embedder.fit_transform(X))
+                self.embeddings.append(embedder.fit_transform(x))
         self.embeddings = np.array(self.embeddings)
-
-
-
-
-
-
