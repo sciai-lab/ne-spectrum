@@ -108,9 +108,9 @@ def _plot_embedding(embedding,
     return ax
 
 
-class Slider:
+class Spectrum:
     """
-    Slider class for openTSNE
+    Spectrum class for openTSNE
     """
     iter_name = None
     early_exaggeration_iter_name = 0
@@ -131,7 +131,7 @@ class Slider:
                  **kwargs):
 
         """
-        Initialize the Slider class
+        Initialize the Spectrum class
 
         :param num_slides: Number of slides to create
         :param use_previous_as_init: Whether to use the previous slide as initialization for the next slide
@@ -388,7 +388,7 @@ class Slider:
         plt.close(fig)
 
 
-class TSNESlider(Slider):
+class TSNESpectrum(Spectrum):
     iter_name = "n_iter"
     embedder_class = TSNE
     spectrum_param_name = 'exaggeration'
@@ -462,7 +462,7 @@ class TSNESlider(Slider):
         self.embeddings = np.array(self.embeddings)
 
 
-class CNESlider(Slider):
+class CNESpectrum(Spectrum):
     iter_name = "n_epochs"
     embedder_class = CNE
     spectrum_param_name = 's'
