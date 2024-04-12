@@ -402,6 +402,7 @@ class TSNESpectrum(Spectrum):
                  kwarg_list=None,
                  min_exaggeration=0.85,
                  max_exaggeration=30.0,
+                 seed=0,
                  verbose=True,
                  **kwargs):
         super().__init__(num_slides=num_slides,
@@ -411,6 +412,7 @@ class TSNESpectrum(Spectrum):
                          kwarg_list=kwarg_list,
                          min_spec_param=min_exaggeration,
                          max_spec_param=max_exaggeration,
+                         random_state=seed,  # rename seed to random_state as openTSNE uses this name
                          **kwargs
                          )
         # create embedders according to the kwarg_list
@@ -472,12 +474,13 @@ class CNESpectrum(Spectrum):
     def __init__(self,
                  num_slides=60,
                  use_previous_as_init=True,
-                 min_spec_param=-0.1,  # 0 is tsne, 1 is UMAP
+                 min_spec_param=-0.1,  # 0 is ~tsne, 1 is UMAP
                  max_spec_param=2.0,
                  kwarg_list=None,
                  verbose=True,
                  warmup=False,
-                 overall_decay=None,
+                 loss_mode="neg",  # set default to neg rather than infonce, bc we understands its spectrum better
+                 overall_decay="quarter_eighth_linear",
                  **kwargs):
         super().__init__(num_slides=num_slides,
                          use_previous_as_init=use_previous_as_init,
@@ -485,6 +488,7 @@ class CNESpectrum(Spectrum):
                          kwarg_list=kwarg_list,
                          min_spec_param=min_spec_param,
                          max_spec_param=max_spec_param,
+                         loss_mode=loss_mode,
                          **kwargs)
 
         # add arguments for learning rate schedule to kwarg_list
@@ -527,9 +531,15 @@ class CNESpectrum(Spectrum):
         elif self.overall_decay == "quarter_linear":
             for i in range(1, self.num_slides):
                 self.kwarg_list[i]['learning_rate'] = 0.25 * (1 - (i-1) / (self.num_slides-1))
+        elif self.overall_decay == "quarter_eighth_linear":
+            for i in range(1, self.num_slides):
+                self.kwarg_list[i]['learning_rate'] = 0.125 * (1 - (i-1)/ (self.num_slides-2)) + 0.125
         elif self.overall_decay == "quarter":
             for i in range(1, self.num_slides):
                 self.kwarg_list[i]['learning_rate'] = 0.25
+        else:
+            raise ValueError(f"overall_decay {self.overall_decay} not recognized. Must be 'linear', 'half_linear', "
+                             "'quarter_linear', 'quarter_eighth_linear', or 'quarter'.")
 
     def _set_verbosity(self):
         # set verbosity
