@@ -1,0 +1,38 @@
+[project]
+name = "ne-spectrum"
+description = "Neighbor embedding spectrum"
+authors = [
+    {name = "Manuel Klockow", email = "manuel.klockow@stud.uni-heidelberg.de"},
+    {name = "Sebastian Damrich", email = "sebastian.damrich@uni-tuebingen.de"}
+
+
+]
+dynamic = ["version"]
+readme = "readme.md"
+dependencies = [
+    "numpy",
+    "openTSNE",
+    "contrastive-ne",
+    "matplotlib"
+]
+requires-python = ">=3.10"
+license = {text = "MIT"}
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+
+[tool.setuptools.dynamic]
+version = {file = "VERSION"}
+
+[project.urls]
+homepage = "https://github.com/sciai-lab/tsne-slider"
+
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+
+[tool.setuptools.packages.find]
+where = ["src"]
