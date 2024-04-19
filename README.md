@@ -11,7 +11,8 @@ It can use [`openTSNE`](https://pypi.org/project/openTSNE/) or [`cne`](https://p
 
 # Installation
 ```bash
-pip install ne-spectrum
+pip install -i https://test.pypi.org/simple/ ne-spectrum==0.0.0
+#pip install ne-spectrum
 ```
 
 If you want to use the GPU support for the `cne` backend, please make sure that you have pytorch installed with CUDA support before installing `ne-spectrum`.
