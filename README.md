@@ -1,3 +1,6 @@
+![PyPI - Version](https://img.shields.io/pypi/v/ne-spectrum)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 # Neighbor embedding spectrum
 
 This repository implements the computation of neighbor embedding spectra as described in 
