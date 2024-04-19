@@ -191,7 +191,6 @@ class Spectrum:
     def _set_spectrum_param(self):
         # compute the intermediate spectrum parameters used for each slide
         self._get_intermediate_spectrum_params()
-
         # set the spectrum parameters for each slide if none is given.
         for i in range(self.num_slides):
             if self.spectrum_param_name not in self.kwarg_list[i]:
@@ -384,7 +383,10 @@ class Spectrum:
         if not file_name.endswith('.gif') and not file_name.endswith('.mp4'):
             file_name = file_name + '.mp4'
 
-        ani.save(os.path.join(save_path, file_name), writer='ffmpeg', fps=9, dpi=300)
+        if file_name.endswith(".mp4"):
+            ani.save(os.path.join(save_path, file_name), writer='ffmpeg', fps=9, dpi=300)
+        else:
+            ani.save(os.path.join(save_path, file_name), writer='pillow', fps=9, dpi=300)
         plt.close(fig)
 
 
@@ -479,6 +481,7 @@ class CNESpectrum(Spectrum):
                  kwarg_list=None,
                  verbose=True,
                  warmup=False,
+                 negative_samples=50,  # higher default for good local quality with high repulsion
                  loss_mode="neg",  # set default to neg rather than infonce, bc we understands its spectrum better
                  overall_decay="quarter_eighth_linear",
                  **kwargs):
@@ -489,6 +492,7 @@ class CNESpectrum(Spectrum):
                          min_spec_param=min_spec_param,
                          max_spec_param=max_spec_param,
                          loss_mode=loss_mode,
+                         negative_samples=negative_samples,
                          **kwargs)
 
         # add arguments for learning rate schedule to kwarg_list
