@@ -8,14 +8,15 @@ authors = [
 
 ]
 dynamic = ["version"]
-readme = "readme.md"
+readme = "README.md"
 dependencies = [
     "numpy",
     "openTSNE",
     "contrastive-ne",
-    "matplotlib"
+    "matplotlib",
+    "ffmpeg"
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = {text = "MIT"}
 
 classifiers = [
