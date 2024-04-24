@@ -3,8 +3,8 @@ import os
 import numpy as np
 
 # get random data
-x1 = np.random.randn(1000, 10)
-x2 = np.random.randn(1000, 10) + np.ones((1000, 10))
+x1 = np.random.randn(100, 10)
+x2 = np.random.randn(100, 10) + np.ones((100, 10))
 x = np.concatenate([x1, x2])
 
 
