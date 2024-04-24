@@ -14,7 +14,7 @@ dependencies = [
     "openTSNE",
     "contrastive-ne>=0.3.6",
     "matplotlib",
-    "ffmpeg"
+    "pillow"
 ]
 requires-python = ">=3.12"
 license = {text = "MIT"}

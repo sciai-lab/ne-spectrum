@@ -11,6 +11,6 @@ x = np.concatenate([x1, x2])
 for spectrum in [TSNESpectrum(num_slides=10), CNESpectrum(num_slides=10)]:
     spectrum.fit(x)
 
-    video_file = "test.mp4"
+    video_file = "test.gif"
     spectrum.save_video(save_path="./", file_name=video_file)
     os.remove(video_file)

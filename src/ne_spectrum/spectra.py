@@ -381,7 +381,7 @@ class Spectrum:
         os.makedirs(save_path, exist_ok=True)
 
         if not file_name.endswith('.gif') and not file_name.endswith('.mp4'):
-            file_name = file_name + '.mp4'
+            file_name = file_name + '.gif'
 
         if file_name.endswith(".mp4"):
             ani.save(os.path.join(save_path, file_name), writer='ffmpeg', fps=9, dpi=300)
