@@ -135,14 +135,12 @@ class Spectrum:
 
         :param num_slides: Number of slides to create
         :param use_previous_as_init: Whether to use the previous slide as initialization for the next slide
-        :param tsne_kwarg_list: List of dictionaries with keyword arguments for the TSNE class. If None, a default list
-        is created
-        :param min_exaggeration: Minimum exaggeration for the slides
-        :param max_exaggeration: Maximum exaggeration for the slides
-        :param verbose: Whether to print progress inside each method. Overall progress over slides is always printed.
         :param early_exaggeration: Early exaggeration. If use_previous_as_init is True, this is only used in the first
          slide. For t-SNE this is an int for the number of early exaggeration epochs. For CNE this is a bool for whether
          to use early exaggeration.
+        :param verbose: Whether to print progress inside each method. Overall progress over slides is always printed.
+        :param kwarg_list: List of dictionaries with keyword arguments for the embedding method. If None, a default list
+        is created
         :param kwargs: Additional keyword arguments for the embedding method (TSNE or CNE class).
          Should be None, one dictionary, or a list with one dictionary for each slide. If None a default list is created.
          If one dictionary is given, this is used for all slides.
