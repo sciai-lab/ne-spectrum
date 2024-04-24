@@ -324,7 +324,7 @@ class Spectrum:
 
     def save_video(self,
                    save_path,
-                   file_name='video.mp4',
+                   file_name='video.gif',
                    size=2.0,
                    color=None,
                    cmap='viridis',
@@ -335,8 +335,8 @@ class Spectrum:
         Save the slides as a video
 
         :param save_path: Path to the folder to save the video to
-        :param file_name: Name of the file to save the video to. If file_name ends in ".gif", the video is saved as GIF.
-        Otherwise, the video is saved as mp4.
+        :param file_name: Name of the file to save the video to. If file_name ends in ".mp4", the video is saved as mp4 (this needs ffmpeg on the system).
+        Otherwise, the video is saved as GIF.
         :param size: Size of the scatter points
         :param color: Color of the scatter points
         :param cmap: Colormap for the scatter points
