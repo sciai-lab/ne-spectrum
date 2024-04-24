@@ -12,7 +12,7 @@ readme = "README.md"
 dependencies = [
     "numpy",
     "openTSNE",
-    "contrastive-ne",
+    "contrastive-ne>=0.3.6",
     "matplotlib",
     "ffmpeg"
 ]
