@@ -73,7 +73,7 @@ tsnespectrum.save_video(save_path=os.path.join(fig_path, "mnist_tsne"),
 
 
 
-Similarly, we can copmute the neighbor embedding spectrum with the `cne` backend
+Similarly, we can compute the neighbor embedding spectrum with the `cne` backend
 ```python
 # compute spectrum with CNE backend
 cnespectrum = CNESpectrum()
