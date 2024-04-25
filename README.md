@@ -4,19 +4,18 @@
 # Neighbor embedding spectrum
 
 This repository implements the computation of neighbor embedding spectra as described in 
-*Exploring structure in single-cell data with the neighbor embedding spectrum* ([bioarxiv]()).
+*Visualizing single-cell data with the neighbor embedding spectrum* ([bioarxiv]()).
 
 It can use [`openTSNE`](https://pypi.org/project/openTSNE/) or [`cne`](https://pypi.org/project/contrastive-ne/) as backends.
 
 
 # Installation
 ```bash
-pip install -i https://test.pypi.org/simple/ ne-spectrum==0.0.0
-#pip install ne-spectrum
+pip install ne-spectrum
 ```
 
 If you want to use the GPU support for the `cne` backend, please make sure that you have pytorch installed with CUDA support before installing `ne-spectrum`.
-
+Similarly, if you want to save animations as `.mp4` rather than `.gif` files, you need to install [ffmpeg](https://ffmpeg.org/).
 # Usage
 
 Load MNIST as example data
