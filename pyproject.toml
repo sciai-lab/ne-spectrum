@@ -12,7 +12,7 @@ readme = "README.md"
 dependencies = [
     "numpy",
     "openTSNE",
-    "contrastive-ne>=0.3.6",
+    "contrastive-ne>=0.3.8",
     "matplotlib",
     "pillow"
 ]
