@@ -4,7 +4,7 @@
 # Neighbor embedding spectrum
 
 This repository implements the computation of neighbor embedding spectra as described in 
-*Visualizing single-cell data with the neighbor embedding spectrum* ([bioarxiv]()).
+*Visualizing single-cell data with the neighbor embedding spectrum* ([bioarxiv](https://www.biorxiv.org/content/10.1101/2024.04.26.590867v1)).
 
 It can use [`openTSNE`](https://pypi.org/project/openTSNE/) or [`cne`](https://pypi.org/project/contrastive-ne/) as backends.
 
